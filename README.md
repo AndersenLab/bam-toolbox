@@ -22,7 +22,7 @@ pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.1.tar.gz
 
 ### Coverage
 
-Calculate depth of coverage 
+Calculate depth of coverage for whole genome, nuclear genome, mitochondrial genome, and individual chromosomes. Also calculates the ratio of mitochondrial to nuclear depth of coverage which acts a proxy for mitochondrial content.
 
 ```
 usage:
