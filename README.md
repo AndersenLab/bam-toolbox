@@ -71,7 +71,7 @@ __Formatted Result:__
 | test.bam | CONTIG=II;ATTR=Sum_of_Depths       | 262301           | 2015-10-29 14:22:31.571656 |
 | test.bam | CONTIG=II;ATTR=Length              |      1.52794e+07 | 2015-10-29 14:22:31.571664 |
 | test.bam | CONTIG=II;ATTR=Breadth_of_Coverage |      0.000660496 | 2015-10-29 14:22:31.571672 |
-| test.bam | CONTIG=genome;ATTR=mt_ratio            | 16788.3         | 2015-10-29 14:22:31.571884 |
+| test.bam | CONTIG=genome;ATTR=mt_ratio        |  16788.3         | 2015-10-29 14:22:31.571884 |
 
 The result may look a little strange but it lends itself to performing analysis in programs like R. A simpler output is available byy ommitting the `--eav` flag.
 
