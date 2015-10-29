@@ -1,6 +1,10 @@
 # bam-toolbox
 
+## Installation
 
+```
+pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.1.tar.gz
+```
 
 ## Usage
 
