@@ -3,10 +3,12 @@
 usage:
   bam coverage header [--eav]
   bam coverage <bam> [--mtchr=<mtchr>] [--eav]
+  bam coverage <bam> <chrom:start-end> [--eav]
 
 options:
   -h --help                   Show this screen.
   --version                   Show version.
+  --eav                       Print eav representation of data.
 
 """
 from docopt import docopt
@@ -17,6 +19,8 @@ import os
 from eav import *
 import re
 from subprocess import Popen, PIPE
+from pysam import AlignmentFile
+
 
 
 def get_contigs(bam):
@@ -34,6 +38,7 @@ def coverage(bam, mtchr = None):
     if os.path.isfile(bam) == False and bam != "-":
         raise Exception("Bam file does not exist")
     contigs = get_contigs(bam)
+
 
     # Guess mitochondrial chromosome
     if mtchr == None:
@@ -87,12 +92,42 @@ if __name__ == '__main__':
     args = docopt(__doc__,
                   version='VCF-Toolbox v0.1',
                   options_first=False)
-    if args["header"]:
+
+    if args["<chrom:start-end>"]:
+        chrom, start, end = re.split("[:-]", args["<chrom:start-end>"]) 
+        start, end = int(start), int(end)
+        bamfile = AlignmentFile(args["<bam>"])
+
+        # If end extends to far, adjust for chrom
+        chrom_len = bamfile.lengths[bamfile.gettid(chrom)]
+        if end > chrom_len:
+            with indent(4):
+                puts_err(colored.yellow("\nSpecified chromosome end extends beyond chromosome length. Set to max of: " + str(chrom_len) + "\n"))
+                end = chrom_len
+
+
+        region = bamfile.pileup(chrom, start, end+1, truncate = True, max_depth = 1e8)
+        cum_depth = 0
+        pos_covered = 0
+        for n,i in enumerate(region):
+            pos_covered += 1
+            cum_depth += i.nsegments
+            print n, pos_covered, i.nsegments
+        coverage = cum_depth / float(n+1)
+        breadth  = pos_covered / float(end - start + 1)
+        if args["--eav"]:
+            print eav(args["<bam>"], OrderedDict([("ATTR", "depth_of_coverage"), ("chrom", chrom), ("start", start), ("end", end)]), coverage)
+            print eav(args["<bam>"], OrderedDict([("ATTR", "breadth_of_coverage"), ("chrom", chrom), ("start", start), ("end", end)]), breadth)
+        else:
+            print args["<bam>"] + "\tdepth_of_coverage\t" + str(coverage)
+            print args["<bam>"] + "\tbreadth_of_tcoverage\t" + str(breadth)
+
+    elif args["header"]:
         if args["--eav"]:
             print(eav.header)
         else:
             print("CONTIG\tATTR\tVALUE")
-    if args["<bam>"]:
+    elif args["<bam>"]:
         bam = args["<bam>"]
         cov = coverage(bam, args["--mtchr"])
         if args["--eav"]:
