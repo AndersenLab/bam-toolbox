@@ -36,7 +36,7 @@ if __name__ == '__main__':
         with indent(4):
             puts_err("Readgroups:")
             with indent(4):
-                puts_err(colored.green("\n" + '\n'.join(readgroups)))
+                exit(puts_err(colored.green("\n" + '\n'.join(readgroups)) + "\n"))
     elif args["--include"]:
         include = args["--include"][0].split(",")
         for x in include:
