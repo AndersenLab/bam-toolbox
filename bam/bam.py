@@ -8,6 +8,7 @@ usage:
 
 commands:
   coverage
+  readgroups
 
 """
 from docopt import docopt
@@ -67,7 +68,7 @@ def main():
             except CalledProcessError:
                 with indent(4):
                     puts(colored.red(prog + " not installed. Use a package manager to install or try using 'tb.py setup'\n"))
-    elif args['<command>'] in ['coverage']:
+    elif args['<command>'] in ['coverage', 'readgroups']:
         comm = ['python', getScriptPath() + '/' + args["<command>"] + ".py"] + argv
         exit(call(comm))
 
