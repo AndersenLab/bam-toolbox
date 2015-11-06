@@ -3,7 +3,9 @@
 usage:
   bam coverage header [--eav]
   bam coverage <bam> [--mtchr=<mtchr>] [--eav]
-  bam coverage <bam> <chrom:start-end> [--eav]
+  bam coverage <bam> [--eav] <chrom:start-end>...
+  bam coverage <bam> [--window] [--eav]
+  bam coverage <bam> --regions=<gff/bed> [--eav]
 
 options:
   -h --help                   Show this screen.
@@ -12,15 +14,55 @@ options:
 
 """
 from docopt import docopt
-import sys
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from clint.textui import colored, indent, puts_err
 import os
 from eav import *
 import re
 from subprocess import Popen, PIPE
 from pysam import AlignmentFile
+from pybedtools import BedTool
+from pybedtools.cbedtools import Interval
 
+
+
+
+def calc_coverage(bamfile, regions = None, mtchr = None):
+    for region in regions:
+        output_dir = OrderedDict()
+        if type(region) == Interval:
+            chrom, start, end = str(region.chrom), region.start, region.stop
+            output_dir["name"] = region.name
+        else:
+            chrom, start, end = re.split("[:-]", region) 
+            start, end = int(start), int(end)
+
+        output_dir["chrom"] = chrom
+        output_dir["start"] = start
+        output_dir["end"] = end
+        # If end extends to far, adjust for chrom
+        chrom_len = bamfile.lengths[bamfile.gettid(chrom)]
+        if end > chrom_len:
+            with indent(4):
+                puts_err(colored.yellow("\nSpecified chromosome end extends beyond chromosome length. Set to max of: " + str(chrom_len) + "\n"))
+                end = chrom_len
+
+        region = bamfile.pileup(chrom, start, end+1, truncate = True, max_depth = 1e8)
+        cum_depth = 0
+        pos_covered = 0
+        for n,i in enumerate(region):
+            pos_covered += 1
+            cum_depth += i.nsegments
+        coverage = cum_depth / float(n+1)
+        breadth  = pos_covered / float(end - start + 1)
+        if args["--eav"]:
+            output_dir["ATTR"] = "depth_of_coverage"
+            print eav(args["<bam>"], output_dir, coverage)
+            output_dir["ATTR"] = "breadth_of_coverage"
+            print eav(args["<bam>"], output_dir, breadth)
+        else:
+            print args["<bam>"] + "\tdepth_of_coverage\t" + str(coverage)
+            print args["<bam>"] + "\tbreadth_of_tcoverage\t" + str(breadth)
 
 
 def get_contigs(bam):
@@ -32,6 +74,9 @@ def get_contigs(bam):
     for x in re.findall("@SQ\WSN:(?P<chrom>[A-Za-z0-9_]*)\WLN:(?P<length>[0-9]+)", header):
         contigs[x[0]] = int(x[1])
     return contigs
+
+
+
 
 def coverage(bam, mtchr = None):
     # Check to see if file exists
@@ -92,36 +137,22 @@ if __name__ == '__main__':
     args = docopt(__doc__,
                   version='VCF-Toolbox v0.1',
                   options_first=False)
+    print args
 
-    if args["<chrom:start-end>"]:
-        chrom, start, end = re.split("[:-]", args["<chrom:start-end>"]) 
-        start, end = int(start), int(end)
+    if args["<bam>"]:
+        # Add check for file here
         bamfile = AlignmentFile(args["<bam>"])
 
-        # If end extends to far, adjust for chrom
-        chrom_len = bamfile.lengths[bamfile.gettid(chrom)]
-        if end > chrom_len:
-            with indent(4):
-                puts_err(colored.yellow("\nSpecified chromosome end extends beyond chromosome length. Set to max of: " + str(chrom_len) + "\n"))
-                end = chrom_len
-
-
-        region = bamfile.pileup(chrom, start, end+1, truncate = True, max_depth = 1e8)
-        cum_depth = 0
-        pos_covered = 0
-        for n,i in enumerate(region):
-            pos_covered += 1
-            cum_depth += i.nsegments
-            print n, pos_covered, i.nsegments
-        coverage = cum_depth / float(n+1)
-        breadth  = pos_covered / float(end - start + 1)
-        if args["--eav"]:
-            print eav(args["<bam>"], OrderedDict([("ATTR", "depth_of_coverage"), ("chrom", chrom), ("start", start), ("end", end)]), coverage)
-            print eav(args["<bam>"], OrderedDict([("ATTR", "breadth_of_coverage"), ("chrom", chrom), ("start", start), ("end", end)]), breadth)
-        else:
-            print args["<bam>"] + "\tdepth_of_coverage\t" + str(coverage)
-            print args["<bam>"] + "\tbreadth_of_tcoverage\t" + str(breadth)
-
+    if args["<chrom:start-end>"]:
+        calc_coverage(bamfile, args["<chrom:start-end>"])
+    elif args["--window"]:
+        print window
+    elif args["--regions"]:
+        """
+            Calculate coverage in specified regions
+        """
+        bed = BedTool(args["--regions"])
+        calc_coverage(bamfile, bed[:])
     elif args["header"]:
         if args["--eav"]:
             print(eav.header)
