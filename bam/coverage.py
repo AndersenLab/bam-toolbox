@@ -4,7 +4,7 @@ usage:
   bam coverage header [--eav]
   bam coverage <bam> [--mtchr=<mtchr>] [--eav]
   bam coverage <bam> [--eav] <chrom:start-end>...
-  bam coverage <bam> [--window] [--eav]
+  bam coverage <bam> [--window=<size>] [--eav]
   bam coverage <bam> --regions=<gff/bed> [--eav]
 
 options:
@@ -24,6 +24,14 @@ from pysam import AlignmentFile
 from pybedtools import BedTool
 from pybedtools.cbedtools import Interval
 
+def iterate_window(contigs, size):
+    for chrom, size in contigs:
+        for i in xrange(1,size, window):
+            if i + window > size:
+                end = size
+            else:
+                end = i + window-1
+            yield "{chrom}:{i}-{end}".format(**locals())
 
 
 
@@ -31,7 +39,8 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
     for region in regions:
         output_dir = OrderedDict()
         if type(region) == Interval:
-            chrom, start, end = str(region.chrom), region.start, region.stop
+            # Add one to start as starts are 0 based; ends are 1 based.
+            chrom, start, end = str(region.chrom+1), region.start, region.stop
             output_dir["name"] = region.name
         else:
             chrom, start, end = re.split("[:-]", region) 
@@ -56,6 +65,8 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
         coverage = cum_depth / float(n+1)
         breadth  = pos_covered / float(end - start + 1)
         if args["--eav"]:
+            output_dir["ATTR"] = "bases_mapped"
+            print eav(args["<bam>"], output_dir, cum_depth)
             output_dir["ATTR"] = "depth_of_coverage"
             print eav(args["<bam>"], output_dir, coverage)
             output_dir["ATTR"] = "breadth_of_coverage"
@@ -144,9 +155,19 @@ if __name__ == '__main__':
         bamfile = AlignmentFile(args["<bam>"])
 
     if args["<chrom:start-end>"]:
+        """
+            Calculate coverage in a given region or regions
+        """
         calc_coverage(bamfile, args["<chrom:start-end>"])
     elif args["--window"]:
-        print window
+        """
+            Calculate coverage across a window of given size.
+        """
+        contigs = [(x["SN"],x["LN"]) for x in bamfile.header["SQ"]]
+        window = int(args["--window"])
+        regions = iterate_window(contigs, window)
+        calc_coverage(bamfile, regions)
+    
     elif args["--regions"]:
         """
             Calculate coverage in specified regions
@@ -159,6 +180,9 @@ if __name__ == '__main__':
         else:
             print("CONTIG\tATTR\tVALUE")
     elif args["<bam>"]:
+        """ 
+            Calculate coverage genome wide
+        """
         bam = args["<bam>"]
         cov = coverage(bam, args["--mtchr"])
         if args["--eav"]:
