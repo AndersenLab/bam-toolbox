@@ -23,6 +23,7 @@ from subprocess import Popen, PIPE
 from pysam import AlignmentFile
 from pybedtools import BedTool
 from pybedtools.cbedtools import Interval
+from pprint import pprint as pp
 
 def iterate_window(contigs, size):
     for chrom, size in contigs:
@@ -36,6 +37,7 @@ def iterate_window(contigs, size):
 
 
 def calc_coverage(bamfile, regions = None, mtchr = None):
+    depths = []
     for region in regions:
         output_dir = OrderedDict()
         if type(region) == Interval:
@@ -45,10 +47,10 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
         else:
             chrom, start, end = re.split("[:-]", region) 
             start, end = int(start), int(end)
-
         output_dir["chrom"] = chrom
         output_dir["start"] = start
         output_dir["end"] = end
+
         # If end extends to far, adjust for chrom
         chrom_len = bamfile.lengths[bamfile.gettid(chrom)]
         if end > chrom_len:
@@ -62,8 +64,9 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
         for n,i in enumerate(region):
             pos_covered += 1
             cum_depth += i.nsegments
-        coverage = cum_depth / float(n+1)
-        breadth  = pos_covered / float(end - start + 1)
+        length = end - start + 1
+        coverage = cum_depth / float(length)
+        breadth  = pos_covered / float(length)
         if args["--eav"]:
             output_dir["ATTR"] = "bases_mapped"
             print eav(args["<bam>"], output_dir, cum_depth)
@@ -71,78 +74,19 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
             print eav(args["<bam>"], output_dir, coverage)
             output_dir["ATTR"] = "breadth_of_coverage"
             print eav(args["<bam>"], output_dir, breadth)
+            output_dir["ATTR"] = "length"
+            print eav(args["<bam>"], output_dir, length)
+            output_dir["ATTR"] = "pos_mapped"
+            print eav(args["<bam>"], output_dir, pos_covered)
+            depths.append({"chrom": chrom, 
+                           "bases_mapped": cum_depth,
+                           "pos_covered": pos_covered,
+                           "depth_of_coverage": coverage})
         else:
             print args["<bam>"] + "\tdepth_of_coverage\t" + str(coverage)
-            print args["<bam>"] + "\tbreadth_of_tcoverage\t" + str(breadth)
+            print args["<bam>"] + "\tbreadth_of_coverage\t" + str(breadth)
+    return depths
 
-
-def get_contigs(bam):
-    header, err = Popen(["samtools","view","-H",bam], stdout=PIPE, stderr=PIPE).communicate()
-    if err != "":
-        raise Exception(err)
-    # Extract contigs from header and convert contigs to integers
-    contigs = OrderedDict()
-    for x in re.findall("@SQ\WSN:(?P<chrom>[A-Za-z0-9_]*)\WLN:(?P<length>[0-9]+)", header):
-        contigs[x[0]] = int(x[1])
-    return contigs
-
-
-
-
-def coverage(bam, mtchr = None):
-    # Check to see if file exists
-    if os.path.isfile(bam) == False and bam != "-":
-        raise Exception("Bam file does not exist")
-    contigs = get_contigs(bam)
-
-
-    # Guess mitochondrial chromosome
-    if mtchr == None:
-        mtchr = [x for x in contigs if x.lower().find("m") == 0]
-        if len(mtchr) != 1:
-            mtchr = None
-        else:
-            mtchr = mtchr[0]
-            with indent(4):
-                puts_err(colored.blue("\nGuessing Mitochondrial Chromosome: " + mtchr + "\n"))
-
-    coverage_dict = OrderedDict()
-    for c in contigs.keys():
-        command = "samtools depth -r %s %s | awk '{sum+=$3;cnt++}END{print cnt \"\t\" sum}'" % (c, bam)
-        coverage_dict[c] = {}
-        coverage_dict[c]["Bases_Mapped"], coverage_dict[c]["Sum_of_Depths"] = map(int,Popen(command, stdout=PIPE, shell = True).communicate()[0].strip().split("\t"))
-        coverage_dict[c]["Breadth_of_Coverage"] = coverage_dict[c]["Bases_Mapped"] / float(contigs[c])
-        coverage_dict[c]["Depth_of_Coverage"] = coverage_dict[c]["Sum_of_Depths"] / float(contigs[c])
-        coverage_dict[c]["Length"] = int(contigs[c])
-
-    # Calculate Genome Wide Breadth of Coverage and Depth of Coverage
-    genome_length = float(sum(contigs.values()))
-    coverage_dict["genome"] = {}
-    coverage_dict["genome"]["Length"] = int(genome_length)
-    coverage_dict["genome"]["Bases_Mapped"] = sum([x["Bases_Mapped"] for k, x in coverage_dict.iteritems() if k != "genome"])
-    coverage_dict["genome"]["Sum_of_Depths"] = sum([x["Sum_of_Depths"] for k, x in coverage_dict.iteritems() if k != "genome"])
-    coverage_dict["genome"]["Breadth_of_Coverage"] = sum([x["Bases_Mapped"] for k, x in coverage_dict.iteritems() if k != "genome"]) / float(genome_length)
-    coverage_dict["genome"]["Depth_of_Coverage"] = sum([x["Sum_of_Depths"] for k, x in coverage_dict.iteritems() if k != "genome"]) / float(genome_length)
-
-    if mtchr != None:
-        # Calculate nuclear breadth of coverage and depth of coverage
-        ignore_contigs = [mtchr, "genome", "nuclear"]
-        coverage_dict["nuclear"] = {}
-        coverage_dict["nuclear"]["Length"] = sum([x["Length"] for k,x in coverage_dict.iteritems() if k not in ignore_contigs ])
-        coverage_dict["nuclear"]["Bases_Mapped"] = sum([x["Bases_Mapped"] for k, x in coverage_dict.iteritems() if k not in ignore_contigs])
-        coverage_dict["nuclear"]["Sum_of_Depths"] = sum([x["Sum_of_Depths"] for k, x in coverage_dict.iteritems() if k not in ignore_contigs])
-        coverage_dict["nuclear"]["Breadth_of_Coverage"] = sum([x["Bases_Mapped"] for k, x in coverage_dict.iteritems() if k not in ignore_contigs]) / float(coverage_dict["nuclear"]["Length"])
-        coverage_dict["nuclear"]["Depth_of_Coverage"] = sum([x["Sum_of_Depths"] for k, x in coverage_dict.iteritems() if k not in ignore_contigs]) / float(coverage_dict["nuclear"]["Length"])
-
-        # Calculate the ratio of mtDNA depth to nuclear depth
-        coverage_dict["genome"]["mt_ratio"] = coverage_dict[mtchr]["Depth_of_Coverage"] / float(coverage_dict["nuclear"]["Depth_of_Coverage"])
-
-    # Flatten Dictionary 
-    coverage = []
-    for k,v in coverage_dict.items():
-        for x in v.items():
-            coverage += [(k,x[0], x[1])]
-    return coverage
 
 if __name__ == '__main__':
     args = docopt(__doc__,
@@ -184,14 +128,63 @@ if __name__ == '__main__':
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
-        cov = coverage(bam, args["--mtchr"])
-        if args["--eav"]:
-            for i in cov:
-                out = eav(bam, {"CONTIG": i[0], "ATTR": i[1]}, i[2])
-                print(out)
+        chroms = ["{0}:{1}-{2}".format(*x) for x in zip(bamfile.references, ["1"]*len(bamfile.references), map(str,bamfile.lengths))]
+        if not args["--mtchr"]:
+            mtchr = [x for x in bamfile.references if x.lower().find("m") == 0]
+        if len(mtchr) != 1:
+            mtchr = None
         else:
-            for i in cov:
-                print '\t'.join(map(str,i))
+            mtchr = mtchr[0]
+            with indent(4):
+                puts_err(colored.blue("\nGuessing Mitochondrial Chromosome: " + mtchr + "\n"))
+        depths = []
+        cov = calc_coverage(bamfile, chroms, mtchr)
+        
+        # Genomewide depth
+        output_dir = {}
+        genome_length = sum([x for x in bamfile.lengths])
+        output_dir["length"] = genome_length
+        output_dir["chrom"] = "genome"
 
+        bases_mapped = sum([x["bases_mapped"] for x in cov])
+        output_dir["ATTR"] = "bases_mapped"
+        print eav(args["<bam>"], output_dir, bases_mapped)
 
+        output_dir["ATTR"] = "depth_of_coverage"
+        coverage = bases_mapped / float(genome_length)
+        print eav(args["<bam>"], output_dir, coverage)
 
+        output_dir["ATTR"] = "breadth_of_coverage"
+        breadth = sum([x["pos_covered"] for x in cov]) / float(genome_length)
+        print eav(args["<bam>"], output_dir, breadth)
+
+        output_dir["ATTR"] = "positions_mapped"
+        pos_mapped = sum([x["pos_covered"] for x in cov]) 
+        print eav(args["<bam>"], output_dir, pos_mapped)
+
+        if mtchr:
+            # Nuclear
+            genome_length = sum([y for x,y in zip(bamfile.references, bamfile.lengths) if x != mtchr])
+            output_dir["length"] = genome_length
+            output_dir["chrom"] = "nuclear"
+
+            bases_mapped = sum([x["bases_mapped"] for x in cov if x["chrom"] != mtchr])
+            output_dir["ATTR"] = "bases_mapped"
+            print eav(args["<bam>"], output_dir, bases_mapped)
+
+            output_dir["ATTR"] = "depth_of_coverage"
+            coverage = bases_mapped / float(genome_length)
+            print eav(args["<bam>"], output_dir, coverage)
+
+            output_dir["ATTR"] = "breadth_of_coverage"
+            breadth = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) / float(genome_length)
+            print eav(args["<bam>"], output_dir, breadth)
+
+            output_dir["ATTR"] = "positions_mapped"
+            pos_mapped = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) 
+            print eav(args["<bam>"], output_dir, pos_mapped)
+
+            # mt:nuclear ratio
+            output_dir = {"ATTR":"mt_nuclear_ratio"}
+            mt_nuc = [x for x in cov if x["chrom"] == mtchr][0]["depth_of_coverage"] / coverage
+            print eav(args["<bam>"], output_dir, mt_nuc)
