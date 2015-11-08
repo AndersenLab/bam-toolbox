@@ -13,5 +13,5 @@ setup(name='bam-toolbox',
       [console_scripts]
       bam = bam.bam:main
       """,
-      install_requires=["docopt", "clint"],
+      install_requires=["docopt", "clint","pybedtools"],
       zip_safe=False)

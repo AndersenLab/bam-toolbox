@@ -69,15 +69,15 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
         breadth  = pos_covered / float(length)
         if args["--eav"]:
             output_dir["ATTR"] = "bases_mapped"
-            print eav(args["<bam>"], output_dir, cum_depth)
+            print eav(bam_name, output_dir, cum_depth)
             output_dir["ATTR"] = "depth_of_coverage"
-            print eav(args["<bam>"], output_dir, coverage)
+            print eav(bam_name, output_dir, coverage)
             output_dir["ATTR"] = "breadth_of_coverage"
-            print eav(args["<bam>"], output_dir, breadth)
+            print eav(bam_name, output_dir, breadth)
             output_dir["ATTR"] = "length"
-            print eav(args["<bam>"], output_dir, length)
+            print eav(bam_name, output_dir, length)
             output_dir["ATTR"] = "pos_mapped"
-            print eav(args["<bam>"], output_dir, pos_covered)
+            print eav(bam_name, output_dir, pos_covered)
             depths.append({"chrom": chrom, 
                            "bases_mapped": cum_depth,
                            "pos_covered": pos_covered,
@@ -92,7 +92,6 @@ if __name__ == '__main__':
     args = docopt(__doc__,
                   version='VCF-Toolbox v0.1',
                   options_first=False)
-    print args
 
     if args["<bam>"]:
         # Add check for file here
@@ -128,6 +127,7 @@ if __name__ == '__main__':
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
+        bam_name = os.path.basename(args["<bam>"]).replace(".bam", "")
         chroms = ["{0}:{1}-{2}".format(*x) for x in zip(bamfile.references, ["1"]*len(bamfile.references), map(str,bamfile.lengths))]
         if not args["--mtchr"]:
             mtchr = [x for x in bamfile.references if x.lower().find("m") == 0]
@@ -148,19 +148,19 @@ if __name__ == '__main__':
 
         bases_mapped = sum([x["bases_mapped"] for x in cov])
         output_dir["ATTR"] = "bases_mapped"
-        print eav(args["<bam>"], output_dir, bases_mapped)
+        print eav(bam_name, output_dir, bases_mapped)
 
         output_dir["ATTR"] = "depth_of_coverage"
         coverage = bases_mapped / float(genome_length)
-        print eav(args["<bam>"], output_dir, coverage)
+        print eav(bam_name, output_dir, coverage)
 
         output_dir["ATTR"] = "breadth_of_coverage"
         breadth = sum([x["pos_covered"] for x in cov]) / float(genome_length)
-        print eav(args["<bam>"], output_dir, breadth)
+        print eav(bam_name, output_dir, breadth)
 
         output_dir["ATTR"] = "positions_mapped"
         pos_mapped = sum([x["pos_covered"] for x in cov]) 
-        print eav(args["<bam>"], output_dir, pos_mapped)
+        print eav(bam_name, output_dir, pos_mapped)
 
         if mtchr:
             # Nuclear
@@ -170,21 +170,21 @@ if __name__ == '__main__':
 
             bases_mapped = sum([x["bases_mapped"] for x in cov if x["chrom"] != mtchr])
             output_dir["ATTR"] = "bases_mapped"
-            print eav(args["<bam>"], output_dir, bases_mapped)
+            print eav(bam_name, output_dir, bases_mapped)
 
             output_dir["ATTR"] = "depth_of_coverage"
             coverage = bases_mapped / float(genome_length)
-            print eav(args["<bam>"], output_dir, coverage)
+            print eav(bam_name, output_dir, coverage)
 
             output_dir["ATTR"] = "breadth_of_coverage"
             breadth = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) / float(genome_length)
-            print eav(args["<bam>"], output_dir, breadth)
+            print eav(bam_name, output_dir, breadth)
 
             output_dir["ATTR"] = "positions_mapped"
             pos_mapped = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) 
-            print eav(args["<bam>"], output_dir, pos_mapped)
+            print eav(bam_name, output_dir, pos_mapped)
 
             # mt:nuclear ratio
             output_dir = {"ATTR":"mt_nuclear_ratio"}
             mt_nuc = [x for x in cov if x["chrom"] == mtchr][0]["depth_of_coverage"] / coverage
-            print eav(args["<bam>"], output_dir, mt_nuc)
+            print eav(bam_name, output_dir, mt_nuc)
