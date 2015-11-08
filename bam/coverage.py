@@ -92,7 +92,7 @@ if __name__ == '__main__':
     args = docopt(__doc__,
                   version='VCF-Toolbox v0.1',
                   options_first=False)
-
+    bam_name = os.path.basename(args["<bam>"]).replace(".bam", "")
     if args["<bam>"]:
         # Add check for file here
         bamfile = AlignmentFile(args["<bam>"])
@@ -127,7 +127,6 @@ if __name__ == '__main__':
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
-        bam_name = os.path.basename(args["<bam>"]).replace(".bam", "")
         chroms = ["{0}:{1}-{2}".format(*x) for x in zip(bamfile.references, ["1"]*len(bamfile.references), map(str,bamfile.lengths))]
         if not args["--mtchr"]:
             mtchr = [x for x in bamfile.references if x.lower().find("m") == 0]
