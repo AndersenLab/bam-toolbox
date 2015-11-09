@@ -1,5 +1,5 @@
 from datetime import datetime
-import collections
+from collections import OrderedDict
 
 class eav:
     """
@@ -8,7 +8,7 @@ class eav:
     header_out = False
     def __init__(self, entity, attributes, value, tsv = False, header = False):
         self.entity = entity
-        if type(attributes) in [dict, collections.OrderedDict]:
+        if type(attributes) in [dict, OrderedDict]:
             attributes = [k + "=" + str(v) for k,v in attributes.items()]
         elif type(attributes) != list:
             attributes = [attributes]
@@ -27,7 +27,7 @@ class eav:
     def __setattr__(self, name, value):
         # Value is attribute
         if name == "add_attr" or name == "set_attr":
-            if type(value) in [dict, collections.OrderedDict]:
+            if type(value) in [dict, OrderedDict]:
                 value = [k + "=" + v for k,v in value.items()]
             elif type(value) != list:
                 value = [value]
@@ -37,6 +37,7 @@ class eav:
                 self.__dict__["attributes"] = value
         else:
             self.__dict__[name] = value
+
 
     def __repr__(self):
         if self.tsv:
@@ -51,4 +52,9 @@ class eav:
             output = map(str, out)
             return '\t'.join(output)
 
+def dict_to_eav(entity, ATTR, attributes = {}, tsv = False, header = False):
+    for k, value in ATTR.items():
+        attr_in = OrderedDict([("ATTR", k)] + attributes.items())
+        e = eav(entity, attr_in, value, tsv, header)
+        print e
 
