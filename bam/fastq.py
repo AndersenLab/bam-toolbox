@@ -210,7 +210,7 @@ if __name__ == '__main__':
     fq = fastq(args["<fq>"])
     fq_name = os.path.basename(args["<fq>"])
     stats = fq.calculate_fastq_stats()
-    dict_to_eav(fq_name, stats)
+    dict_to_eav(fq_name, stats, header = args["--header"], tsv = args["--tsv"])
 
     
 
