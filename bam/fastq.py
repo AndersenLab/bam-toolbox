@@ -18,6 +18,7 @@ import gzip
 import re
 from pprint import pprint as pp
 from eav import *
+import gzip
 from itertools import groupby as g
 
 old_illumina_header = ["instrument",
@@ -137,12 +138,10 @@ class fastq:
                     break
 
     def calculate_fastq_stats(self):
-        if self.filename.endswith(".fq"):
-            # Read if not zipped.
-            awk_read = "cat".format(**locals())
+        if self.filename.endswith(".gz"):
+            fq_in = gzip.open(self.filename, 'rb')
         else:
-            # unzip
-            awk_read = "gzcat"
+            fq_in = open(self.filename, 'r')
         awk_one_liner =  """ awk '((NR-2)%4==0){ 
                                 read=$1;total++;count[read]++;
                                 print $0;
@@ -164,8 +163,7 @@ class fastq:
                                    maxRead,
                                    count[maxRead],
                                    count[maxRead]*100/total}'"""
-        awk = awk_read + " " + self.filename + " | " + awk_one_liner
-        out = Popen([awk], shell = True, stdout = PIPE, stderr = PIPE)
+        out = Popen([awk_one_liner], shell = True, stdin = fq_in, stdout = PIPE, stderr = PIPE)
         min_length = ""
         max_length = None
         cum_length = 0
