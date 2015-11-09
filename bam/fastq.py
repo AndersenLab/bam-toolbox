@@ -6,7 +6,7 @@ usage:
 options:
   -h --help                   Show this screen.
   --version                   Show version.
-  --header                    Print a header
+  --header                    Print header
   --tsv                       Print output in tsv format
 """
 from docopt import docopt
@@ -18,7 +18,6 @@ import gzip
 import re
 from pprint import pprint as pp
 from eav import *
-import gzip
 from itertools import groupby as g
 
 old_illumina_header = ["instrument",
@@ -138,10 +137,11 @@ class fastq:
                     break
 
     def calculate_fastq_stats(self):
-        if self.filename.endswith(".gz"):
-            fq_in = gzip.open(self.filename, 'rb')
+        if self.filename.endswith(".fq"):
+            # Read if not zipped.
+            awk_read = "cat"
         else:
-            fq_in = open(self.filename, 'r')
+            awk_read = "gunzip -c"
         awk_one_liner =  """ awk '((NR-2)%4==0){ 
                                 read=$1;total++;count[read]++;
                                 print $0;
@@ -163,7 +163,8 @@ class fastq:
                                    maxRead,
                                    count[maxRead],
                                    count[maxRead]*100/total}'"""
-        out = Popen([awk_one_liner], shell = True, stdin = fq_in, stdout = PIPE, stderr = PIPE)
+        awk = awk_read + " " + self.filename + " | " + awk_one_liner
+        out = Popen([awk], shell = True, stdout = PIPE, stderr = PIPE)
         min_length = ""
         max_length = None
         cum_length = 0
@@ -209,7 +210,7 @@ if __name__ == '__main__':
     fq = fastq(args["<fq>"])
     fq_name = os.path.basename(args["<fq>"])
     stats = fq.calculate_fastq_stats()
-    dict_to_eav(fq_name, stats, tsv= args["--tsv"], header = args["--header"])
+    dict_to_eav(fq_name, stats)
 
     
 
