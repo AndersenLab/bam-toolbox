@@ -9,7 +9,6 @@ usage:
 options:
   -h --help                   Show this screen.
   --version                   Show version.
-  --tsv                       Print tsv as output instead of eav format.
   --header                    Print header
 
 """
@@ -17,13 +16,14 @@ from docopt import docopt
 from collections import OrderedDict
 from clint.textui import colored, indent, puts_err
 import os
-from eav import *
+from output import *
 import re
 from subprocess import Popen, PIPE
 from pysam import AlignmentFile
 from pybedtools import BedTool
 from pybedtools.cbedtools import Interval
 from pprint import pprint as pp
+
 
 def iterate_window(contigs, size):
     for chrom, size in contigs:
@@ -33,8 +33,6 @@ def iterate_window(contigs, size):
             else:
                 end = i + window-1
             yield "{chrom}:{i}-{end}".format(**locals())
-
-
 
 def calc_coverage(bamfile, regions = None, mtchr = None):
     depths = []
@@ -58,7 +56,7 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
                 puts_err(colored.yellow("\nSpecified chromosome end extends beyond chromosome length. Set to max of: " + str(chrom_len) + "\n"))
                 end = chrom_len
 
-        region = bamfile.pileup(chrom, start, end+1, truncate = True, max_depth = 1e8)
+        region = bamfile.pileup(chrom, start, end+1, truncate = True, max_depth = 1e9)
         cum_depth = 0
         pos_covered = 0
         for n,i in enumerate(region):
@@ -68,15 +66,15 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
         coverage = cum_depth / float(length)
         breadth  = pos_covered / float(length)
         output_dir["ATTR"] = "bases_mapped"
-        print eav(bam_name, output_dir, cum_depth, args["--tsv"], args["--header"])
+        print output_line(bam_name, output_dir, cum_depth, args["--header"])
         output_dir["ATTR"] = "depth_of_coverage"
-        print eav(bam_name, output_dir, coverage, args["--tsv"])
+        print output_line(bam_name, output_dir, coverage)
         output_dir["ATTR"] = "breadth_of_coverage"
-        print eav(bam_name, output_dir, breadth, args["--tsv"])
+        print output_line(bam_name, output_dir, breadth)
         output_dir["ATTR"] = "length"
-        print eav(bam_name, output_dir, length, args["--tsv"])
+        print output_line(bam_name, output_dir, length)
         output_dir["ATTR"] = "pos_mapped"
-        print eav(bam_name, output_dir, pos_covered, args["--tsv"])
+        print output_line(bam_name, output_dir, pos_covered)
         depths.append({"chrom": chrom, 
                        "bases_mapped": cum_depth,
                        "pos_covered": pos_covered,
@@ -132,49 +130,50 @@ if __name__ == '__main__':
         
         # Genomewide depth
         output_dir = {}
-        genome_length = sum([x for x in bamfile.lengths], args["--tsv"])
-        output_dir["length"] = genome_length
+        genome_length = sum([x for x in bamfile.lengths])
+        output_dir["start"] = 1
+        output_dir["end"] = genome_length
         output_dir["chrom"] = "genome"
+
 
         bases_mapped = sum([x["bases_mapped"] for x in cov])
         output_dir["ATTR"] = "bases_mapped"
-        print eav(bam_name, output_dir, bases_mapped, args["--tsv"])
+        print output_line(bam_name, output_dir, bases_mapped)
 
         output_dir["ATTR"] = "depth_of_coverage"
         coverage = bases_mapped / float(genome_length)
-        print eav(bam_name, output_dir, coverage, args["--tsv"])
+        print output_line(bam_name, output_dir, coverage)
 
         output_dir["ATTR"] = "breadth_of_coverage"
         breadth = sum([x["pos_covered"] for x in cov]) / float(genome_length)
-        print eav(bam_name, output_dir, breadth, args["--tsv"])
+        print output_line(bam_name, output_dir, breadth)
 
         output_dir["ATTR"] = "positions_mapped"
         pos_mapped = sum([x["pos_covered"] for x in cov]) 
-        print eav(bam_name, output_dir, pos_mapped, args["--tsv"])
+        print output_line(bam_name, output_dir, pos_mapped)
 
         if mtchr:
             # Nuclear
-            genome_length = sum([y for x,y in zip(bamfile.references, bamfile.lengths) if x != mtchr])
-            output_dir["length"] = genome_length
+            nuclear_length = sum([y for x,y in zip(bamfile.references, bamfile.lengths) if x != mtchr])
+            output_dir["end"] = nuclear_length
             output_dir["chrom"] = "nuclear"
-
             bases_mapped = sum([x["bases_mapped"] for x in cov if x["chrom"] != mtchr])
             output_dir["ATTR"] = "bases_mapped"
-            print eav(bam_name, output_dir, bases_mapped, args["--tsv"])
+            print output_line(bam_name, output_dir, bases_mapped)
 
             output_dir["ATTR"] = "depth_of_coverage"
             coverage = bases_mapped / float(genome_length)
-            print eav(bam_name, output_dir, coverage, args["--tsv"])
+            print output_line(bam_name, output_dir, coverage)
 
             output_dir["ATTR"] = "breadth_of_coverage"
             breadth = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) / float(genome_length)
-            print eav(bam_name, output_dir, breadth, args["--tsv"])
+            print output_line(bam_name, output_dir, breadth)
 
             output_dir["ATTR"] = "positions_mapped"
             pos_mapped = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) 
-            print eav(bam_name, output_dir, pos_mapped, args["--tsv"])
+            print output_line(bam_name, output_dir, pos_mapped)
 
             # mt:nuclear ratio
-            output_dir = {"ATTR":"mt_nuclear_ratio"}
+            output_dir = {"start": 1, "end": genome_length, "chrom": "genome", "ATTR":"mt_nuclear_ratio"}
             mt_nuc = [x for x in cov if x["chrom"] == mtchr][0]["depth_of_coverage"] / coverage
-            print eav(bam_name, output_dir, mt_nuc, args["--tsv"])
+            print output_line(bam_name, output_dir, mt_nuc)

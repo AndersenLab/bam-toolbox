@@ -8,8 +8,6 @@ usage:
 
 commands:
   coverage
-  readgroups
-  fastq
 
 """
 from docopt import docopt
