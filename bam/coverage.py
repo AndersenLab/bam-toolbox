@@ -18,11 +18,7 @@ from clint.textui import colored, indent, puts_err
 import os
 from output import *
 import re
-from subprocess import Popen, PIPE
 from pysam import AlignmentFile
-from pybedtools import BedTool
-from pybedtools.cbedtools import Interval
-from pprint import pprint as pp
 
 
 def iterate_window(contigs, size):
@@ -35,6 +31,7 @@ def iterate_window(contigs, size):
             yield "{chrom}:{i}-{end}".format(**locals())
 
 def calc_coverage(bamfile, regions = None, mtchr = None):
+    from pybedtools.cbedtools import Interval
     depths = []
     for region in regions:
         output_dir = OrderedDict()
@@ -109,6 +106,7 @@ if __name__ == '__main__':
         """
             Calculate coverage in specified regions
         """
+        from pybedtools import BedTool
         bed = BedTool(args["--regions"])
         calc_coverage(bamfile, bed[:])
     elif args["<bam>"]:
