@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 """
 usage:
-  bam coverage <bam> [options] [--mtchr=<mtchr>] 
+  bam coverage <bam> [options] [--mtchr=<mtchr>]
   bam coverage <bam> [options] <chrom:start-end>...
   bam coverage <bam> [options] --window=<size>
   bam coverage <bam> [options] --regions=<gff/bed>
@@ -9,7 +9,7 @@ usage:
 options:
   -h --help                   Show this screen.
   --version                   Show version.
-  --header                    Print header
+  --header                    print(header
 
 """
 from docopt import docopt
@@ -23,24 +23,26 @@ from pysam import AlignmentFile
 
 def iterate_window(contigs, size):
     for chrom, size in contigs:
-        for i in xrange(1,size, window):
+        for i in xrange(1, size, window):
             if i + window > size:
                 end = size
             else:
-                end = i + window-1
+                end = i + window - 1
             yield "{chrom}:{i}-{end}".format(**locals())
 
-def calc_coverage(bamfile, regions = None, mtchr = None):
+
+def calc_coverage(bamfile, regions=None, mtchr=None):
     from pybedtools.cbedtools import Interval
     depths = []
     for region in regions:
         output_dir = OrderedDict()
         if type(region) == Interval:
             # Add one to start as starts are 0 based; ends are 1 based.
-            chrom, start, end = str(region.chrom), region.start+1, region.stop
+            rchrom = str(region.chrom)
+            chrom, start, end = rchrom, region.start + 1, region.stop
             output_dir["name"] = region.name
         else:
-            chrom, start, end = re.split("[:-]", region) 
+            chrom, start, end = re.split("[:-]", region)
             start, end = int(start), int(end)
         output_dir["chrom"] = chrom
         output_dir["start"] = start
@@ -50,29 +52,35 @@ def calc_coverage(bamfile, regions = None, mtchr = None):
         chrom_len = bamfile.lengths[bamfile.gettid(chrom)]
         if end > chrom_len:
             with indent(4):
-                puts_err(colored.yellow("\nSpecified chromosome end extends beyond chromosome length. Set to max of: " + str(chrom_len) + "\n"))
+                puts_err(
+                    m="\nSpecified chromosome end extends beyond chromosome length. Set to max of: "
+                    colored.yellow(m + str(chrom_len) + "\n"))
                 end = chrom_len
 
-        region = bamfile.pileup(chrom, start, end+1, truncate = True, max_depth = 1e9)
+        region = bamfile.pileup(chrom,
+                                start,
+                                end + 1,
+                                truncate=True,
+                                max_depth=1e9)
         cum_depth = 0
         pos_covered = 0
-        for n,i in enumerate(region):
+        for n, i in enumerate(region):
             pos_covered += 1
             cum_depth += i.nsegments
         length = end - start + 1
         coverage = cum_depth / float(length)
-        breadth  = pos_covered / float(length)
+        breadth = pos_covered / float(length)
         output_dir["ATTR"] = "bases_mapped"
-        print output_line(bam_name, output_dir, cum_depth, args["--header"])
+        print(output_line(bam_name, output_dir, cum_depth, args["--header"]))
         output_dir["ATTR"] = "depth_of_coverage"
-        print output_line(bam_name, output_dir, coverage)
+        print(output_line(bam_name, output_dir, coverage))
         output_dir["ATTR"] = "breadth_of_coverage"
-        print output_line(bam_name, output_dir, breadth)
+        print(output_line(bam_name, output_dir, breadth))
         output_dir["ATTR"] = "length"
-        print output_line(bam_name, output_dir, length)
+        print(output_line(bam_name, output_dir, length))
         output_dir["ATTR"] = "pos_mapped"
-        print output_line(bam_name, output_dir, pos_covered)
-        depths.append({"chrom": chrom, 
+        print(output_line(bam_name, output_dir, pos_covered))
+        depths.append({"chrom": chrom,
                        "bases_mapped": cum_depth,
                        "pos_covered": pos_covered,
                        "depth_of_coverage": coverage})
@@ -97,11 +105,11 @@ if __name__ == '__main__':
         """
             Calculate coverage across a window of given size.
         """
-        contigs = [(x["SN"],x["LN"]) for x in bamfile.header["SQ"]]
+        contigs = [(x["SN"], x["LN"]) for x in bamfile.header["SQ"]]
         window = int(args["--window"])
         regions = iterate_window(contigs, window)
         calc_coverage(bamfile, regions)
-    
+
     elif args["--regions"]:
         """
             Calculate coverage in specified regions
@@ -110,11 +118,13 @@ if __name__ == '__main__':
         bed = BedTool(args["--regions"])
         calc_coverage(bamfile, bed[:])
     elif args["<bam>"]:
-        """ 
+        """
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
-        chroms = ["{0}:{1}-{2}".format(*x) for x in zip(bamfile.references, ["1"]*len(bamfile.references), map(str,bamfile.lengths))]
+        chroms = [
+            ncontig = len(bamfile.references)
+            "{0}:{1}-{2}".format(*x) for x in zip(bamfile.references, ["1"] * ncontig, map(str, bamfile.lengths))]
         if not args["--mtchr"]:
             mtchr = [x for x in bamfile.references if x.lower().find("m") == 0]
         if len(mtchr) != 1:
@@ -125,7 +135,7 @@ if __name__ == '__main__':
                 puts_err(colored.blue("\nGuessing Mitochondrial Chromosome: " + mtchr + "\n"))
         depths = []
         cov = calc_coverage(bamfile, chroms, mtchr)
-        
+
         # Genomewide depth
         output_dir = {}
         genome_length = sum([x for x in bamfile.lengths])
@@ -133,45 +143,43 @@ if __name__ == '__main__':
         output_dir["end"] = genome_length
         output_dir["chrom"] = "genome"
 
-
         bases_mapped = sum([x["bases_mapped"] for x in cov])
         output_dir["ATTR"] = "bases_mapped"
-        print output_line(bam_name, output_dir, bases_mapped)
-
+        print(output_line(bam_name, output_dir, bases_mapped))
         output_dir["ATTR"] = "depth_of_coverage"
         coverage = bases_mapped / float(genome_length)
-        print output_line(bam_name, output_dir, coverage)
+        print(output_line(bam_name, output_dir, coverage))
 
         output_dir["ATTR"] = "breadth_of_coverage"
         breadth = sum([x["pos_covered"] for x in cov]) / float(genome_length)
-        print output_line(bam_name, output_dir, breadth)
+        print(output_line(bam_name, output_dir, breadth))
 
         output_dir["ATTR"] = "positions_mapped"
-        pos_mapped = sum([x["pos_covered"] for x in cov]) 
-        print output_line(bam_name, output_dir, pos_mapped)
+        pos_mapped = sum([x["pos_covered"] for x in cov])
+        print(output_line(bam_name, output_dir, pos_mapped))
 
         if mtchr:
             # Nuclear
-            nuclear_length = sum([y for x,y in zip(bamfile.references, bamfile.lengths) if x != mtchr])
+            nuclear_length = sum([y for x, y in zip(bamfile.references, bamfile.lengths) if x != mtchr])
             output_dir["end"] = nuclear_length
             output_dir["chrom"] = "nuclear"
             bases_mapped = sum([x["bases_mapped"] for x in cov if x["chrom"] != mtchr])
             output_dir["ATTR"] = "bases_mapped"
-            print output_line(bam_name, output_dir, bases_mapped)
+            print(output_line(bam_name, output_dir, bases_mapped))
 
             output_dir["ATTR"] = "depth_of_coverage"
             coverage = bases_mapped / float(genome_length)
-            print output_line(bam_name, output_dir, coverage)
+            print(output_line(bam_name, output_dir, coverage))
 
             output_dir["ATTR"] = "breadth_of_coverage"
             breadth = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) / float(genome_length)
-            print output_line(bam_name, output_dir, breadth)
+            print(output_line(bam_name, output_dir, breadth))
 
             output_dir["ATTR"] = "positions_mapped"
-            pos_mapped = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr]) 
-            print output_line(bam_name, output_dir, pos_mapped)
+            pos_mapped = sum([x["pos_covered"] for x in cov if x["chrom"] != mtchr])
+            print(output_line(bam_name, output_dir, pos_mapped))
 
             # mt:nuclear ratio
-            output_dir = {"start": 1, "end": genome_length, "chrom": "genome", "ATTR":"mt_nuclear_ratio"}
+            output_dir = {"start": 1, "end": genome_length, "chrom": "genome", "ATTR": "mt_nuclear_ratio"}
             mt_nuc = [x for x in cov if x["chrom"] == mtchr][0]["depth_of_coverage"] / coverage
-            print output_line(bam_name, output_dir, mt_nuc)
+            print(output_line(bam_name, output_dir, mt_nuc))
