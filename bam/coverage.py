@@ -51,10 +51,9 @@ def calc_coverage(bamfile, regions=None, mtchr=None):
         # If end extends to far, adjust for chrom
         chrom_len = bamfile.lengths[bamfile.gettid(chrom)]
         if end > chrom_len:
+            m = "\nSpecified chromosome end extends beyond chromosome length. Set to max of: "
             with indent(4):
-                puts_err(
-                    m="\nSpecified chromosome end extends beyond chromosome length. Set to max of: "
-                    colored.yellow(m + str(chrom_len) + "\n"))
+                puts_err(colored.yellow(m + str(chrom_len) + "\n"))
                 end = chrom_len
 
         region = bamfile.pileup(chrom,
@@ -122,8 +121,8 @@ if __name__ == '__main__':
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
+        ncontig = len(bamfile.references)
         chroms = [
-            ncontig = len(bamfile.references)
             "{0}:{1}-{2}".format(*x) for x in zip(bamfile.references, ["1"] * ncontig, map(str, bamfile.lengths))]
         if not args["--mtchr"]:
             mtchr = [x for x in bamfile.references if x.lower().find("m") == 0]

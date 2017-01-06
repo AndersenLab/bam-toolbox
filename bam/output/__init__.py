@@ -15,7 +15,7 @@ class output_line:
         self.attributes = attributes
         self.value = value
         if not output_line.header_out and header:
-            print "bam\tcontig\tstart\tend\tproperty\tvalue"
+            print("bam\tcontig\tstart\tend\tproperty\tvalue")
             output_line.header_out = True
 
 
