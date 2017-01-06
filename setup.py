@@ -1,6 +1,6 @@
 from setuptools import setup
 import glob
-from fq import __version__
+from bam import __version__
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
@@ -13,8 +13,9 @@ setup(name='bam-toolbox',
       author_email='danielecook@gmail.com',
       license='MIT',
       install_requires=required,
-      entry_points="""
-      [console_scripts]
-      bam = bam.bam:main
-      """,
+      entry_points={
+            'console_scripts': [
+                  'bam = bam.cli:main'
+            ]
+      },
       zip_safe=False)
