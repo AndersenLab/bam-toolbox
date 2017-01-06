@@ -1,2 +1,4 @@
 clint
 docopt
+pandas
+pybedtools

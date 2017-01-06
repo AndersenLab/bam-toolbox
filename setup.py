@@ -1,17 +1,21 @@
 from setuptools import setup
-
+import glob
+from bam import __version__
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
 
 setup(name='bam-toolbox',
-      version='0.0.1',
-      packages=['bam', 'output.eav'],
+      version=__version__,
+      packages=['bam'],
       description='Tools for working with BAM files',
       url='https://github.com/AndersenLab/bam-toolbox',
-      author='Daniel Cook',
+      author='Daniel E. Cook',
       author_email='danielecook@gmail.com',
       license='MIT',
-      entry_points="""
-      [console_scripts]
-      bam = bam.bam:main
-      """,
-      install_requires=["docopt", "clint","pybedtools","pandas"],
+      install_requires=required,
+      entry_points={
+            'console_scripts': [
+                  'bam = bam.cli:main'
+            ]
+      },
       zip_safe=False)
