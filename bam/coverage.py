@@ -18,7 +18,18 @@ from clint.textui import colored, indent, puts_err
 import os
 from output import *
 import re
-from pysam import AlignmentFile
+from subprocess import Popen, PIPE
+
+
+def get_contigs(bam):
+    header, err = Popen(["samtools","view","-H",bam], stdout=PIPE, stderr=PIPE).communicate()
+    if err != "":
+        raise Exception(err)
+    # Extract contigs from header and convert contigs to integers
+    contigs = {}
+    for x in re.findall("@SQ\WSN:(?P<chrom>[A-Za-z0-9_]*)\WLN:(?P<length>[0-9]+)", header):
+        contigs[x[0]] = int(x[1])
+    return contigs
 
 
 def iterate_window(contigs, size):
