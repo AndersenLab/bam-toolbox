@@ -18,6 +18,7 @@ from clint.textui import colored, indent, puts_err
 import os
 from output import *
 import re
+from pysam import AlignmentFile
 from subprocess import Popen, PIPE
 
 
