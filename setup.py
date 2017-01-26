@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 
 setup(name='bam-toolbox',
       version=__version__,
-      packages=['bam','output'],
+      packages=['bam','bam.output'],
       description='Tools for working with BAM files',
       url='https://github.com/AndersenLab/bam-toolbox',
       author='Daniel E. Cook',
