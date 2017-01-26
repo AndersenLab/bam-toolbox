@@ -16,7 +16,7 @@ from docopt import docopt
 from collections import OrderedDict
 from clint.textui import colored, indent, puts_err
 import os
-from output import *
+from bam.output import *
 import re
 from pysam import AlignmentFile
 from subprocess import Popen, PIPE
