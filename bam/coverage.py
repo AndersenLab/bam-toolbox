@@ -9,7 +9,7 @@ usage:
 options:
   -h --help                   Show this screen.
   --version                   Show version.
-  --header                    print(header
+  --header                    print header
 
 """
 from docopt import docopt
