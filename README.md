@@ -3,7 +3,7 @@
 ## Installation
 
 ```
-pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.1.tar.gz
+pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.3.tar.gz
 ```
 
 ## Usage
@@ -17,8 +17,6 @@ pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.1.tar.gz
 
     commands:
       coverage
-      readgroups
-      fastq
 
 ## Commands
 
@@ -27,6 +25,7 @@ pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.1.tar.gz
 Calculate depth of coverage! There are several ways to do so:
 
 1. Calculate coverage for the whole genome, nuclear genome, and individual chromosomes. Also calculated the mtDNA:nuclear ratio which acts as a proxy for mitochondrial content.
+
 2.
 
 ```
@@ -40,7 +39,6 @@ usage:
 ###### Parameters
 
 * `--header` - Output the header line.
-* `--tsv` - Output in `tsv` format rather than `eav` format.
 * `--mtchr` - Specifying a mitochondrial chromosome will output the mtDNA:nuclear DNA ratio, offering an estimate of mitochondrial content. 
 * `--window` - Calculate depth of coverage for given windows across the genome.
 * `--regions` - Specify a bed or gff file and calculate coverage in those regions.
