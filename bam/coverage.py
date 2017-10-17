@@ -167,7 +167,7 @@ def calc_coverage(bamfile, regions=None, mtchr=None):
 
 if __name__ == '__main__':
     args = docopt(__doc__,
-                  version='VCF-Toolbox v0.1',
+                  version='BAM-Toolbox v0.1',
                   options_first=False)
     if args["<bam>"]:
         # Add check for file here
