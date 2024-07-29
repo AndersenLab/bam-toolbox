@@ -33,5 +33,5 @@ ENV LANG C.UTF-8
 WORKDIR /opt/pybedtools
 
 RUN pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.3.tar.gz
-RUN apt-get install procps \
+RUN apt-get install -y procps \
     && rm -rf /var/lib/apt/lists/*
