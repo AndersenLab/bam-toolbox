@@ -202,7 +202,6 @@ if __name__ == '__main__':
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
-        print(b.contig_regions, file=sys.stderr)
         cov = calc_coverage(b, b.contig_regions)
 
         # Genomewide depth
