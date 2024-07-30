@@ -3,12 +3,12 @@
 ## Installation
 
 ```
-pip install https://github.com/AndersenLab/bam-toolbox/archive/0.0.3.tar.gz
+pip install https://github.com/AndersenLab/bam-toolbox/archive/1.0.0.tar.gz
 ```
 
 ## Usage
 
-    bam-toolbox 0.1
+    bam-toolbox 1.0
 
     usage:
       bam <command> [<args>...]

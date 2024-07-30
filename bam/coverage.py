@@ -12,16 +12,20 @@ options:
   --header                    print header
 
 """
-from docopt import docopt
+import sys
 from collections import OrderedDict
-from clint.textui import colored, indent, puts_err
 import os
 import re
 from subprocess import Popen, PIPE
-
 from datetime import datetime
 from collections import OrderedDict
 
+from docopt import docopt
+from colorama import Fore, just_fix_windows_console, init
+from termcolor import colored
+
+just_fix_windows_console()
+init(autoreset=True)
 
 class output_line:
 
@@ -72,14 +76,14 @@ class bam_file:
 
     def parse_header(self):
         header, err = Popen(["samtools", "view", "-H", self.fname], stdout=PIPE, stderr=PIPE).communicate()
-        if err != "":
+        if err != b"":
             raise Exception(err)
         self.header = header
         contigs = OrderedDict()
         contig_regions = []
-        for x in re.findall("@SQ\WSN:(?P<chrom>[A-Za-z0-9_]*)\WLN:(?P<length>[0-9]+)", header):
-            contigs[x[0]] = int(x[1])
-            region = "%s:%s-%s" % (x[0], "1", x[1])
+        for x in re.findall(b"@SQ\t[A-Za-z0-9]*SN:(?P<chrom>[A-Za-z0-9_]*)[A-Za-z0-9]*\tLN:(?P<length>[0-9]+)", header):
+            contigs[x[0].decode('utf-8')] = int(x[1])
+            region = "%s:%s-%s" % (x[0].decode('utf-8'), "1", x[1].decode('utf-8'))
             contig_regions.append(region)
         self.contigs = contigs
         self.contig_regions = contig_regions
@@ -87,12 +91,12 @@ class bam_file:
         mtchr = [x for x in self.contigs.keys() if x.lower().find("m") == 0]
         if len(mtchr) == 1:
             self.mtchr = mtchr[0]
-            with indent(4):
-                puts_err(colored.blue("\nGuessing Mitochondrial Chromosome: " + self.mtchr + "\n"))
+            print(Fore.BLUE + "\n    Guessing Mitochondrial Chromosome: " + self.mtchr + "\n",
+                  file=sys.stderr)
 
         self.genome_length = sum(contigs.values())
         if mtchr:
-            self.nuclear_length = sum([x for x in contigs.values() if x != contigs[self.mtchr]])
+            self.nuclear_length = sum([x for x in self.contigs.values() if x != self.contigs[self.mtchr]])
 
 
     def sum_coverage(self, region=None):
@@ -101,7 +105,7 @@ class bam_file:
             pos_covered = 0
             cum_depth = 0
             for row in comm.stdout:
-                chrom, pos, depth = row.strip().split("\t")
+                chrom, pos, depth = row.strip().split(b"\t")
                 pos_covered += 1
                 cum_depth += int(depth)
             return pos_covered, cum_depth
@@ -109,7 +113,7 @@ class bam_file:
 
 def iterate_window(bamfile, size):
     for chrom, size in bamfile.contigs.items():
-        for i in xrange(1, size, window):
+        for i in range(1, size, window):
             if i + window > size:
                 end = size
             else:
@@ -137,10 +141,9 @@ def calc_coverage(bamfile, regions=None, mtchr=None):
         # If end extends to far, adjust for chrom
         chrom_len = bamfile.contigs[chrom]
         if end > chrom_len:
-            m = "\nSpecified chromosome end extends beyond chromosome length. Set to max of: "
-            with indent(4):
-                puts_err(colored.yellow(m + str(chrom_len) + "\n"))
-                end = chrom_len
+            m = "\n    Specified chromosome end extends beyond chromosome length. Set to max of: "
+            print(Fore.YELLOW + m + str(chrom_len) + "\n", file=sys.stderr)
+            end = chrom_len
 
         region = "{c}:{s}-{e}".format(c=chrom, s=start, e=end + 1)
         pos_covered, cum_depth = bamfile.sum_coverage(region)
@@ -199,13 +202,14 @@ if __name__ == '__main__':
             Calculate coverage genome wide
         """
         bam = args["<bam>"]
+        print(b.contig_regions, file=sys.stderr)
         cov = calc_coverage(b, b.contig_regions)
 
         # Genomewide depth
         output_dir = {}
+        output_dir["chrom"] = "genome"
         output_dir["start"] = 1
         output_dir["end"] = b.genome_length
-        output_dir["chrom"] = "genome"
 
         bases_mapped = sum([x["bases_mapped"] for x in cov])
         output_dir["ATTR"] = "bases_mapped"
@@ -224,8 +228,8 @@ if __name__ == '__main__':
 
         if b.mtchr:
             # Nuclear
-            output_dir["end"] = b.nuclear_length
             output_dir["chrom"] = "nuclear"
+            output_dir["end"] = b.nuclear_length
             bases_mapped = sum([x["bases_mapped"] for x in cov if x["chrom"] != b.mtchr])
             output_dir["ATTR"] = "bases_mapped"
             print(output_line(bam_name, output_dir, bases_mapped))
@@ -243,6 +247,6 @@ if __name__ == '__main__':
             print(output_line(bam_name, output_dir, pos_mapped))
 
             # mt:nuclear ratio
-            output_dir = {"start": 1, "end": b.nuclear_length, "chrom": "genome", "ATTR": "mt_nuclear_ratio"}
+            output_dir = {"chrom": "genome", "start": 1, "end": b.nuclear_length, "ATTR": "mt_nuclear_ratio"}
             mt_nuc = [x for x in cov if x["chrom"] == b.mtchr][0]["depth_of_coverage"] / coverage
             print(output_line(bam_name, output_dir, mt_nuc))
